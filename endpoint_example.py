@@ -1,61 +1,58 @@
 #!/usr/bin/env python3
 from flask import Flask, request, abort
 import json
-import socketio
-import uuid
+
+import random
 
 app = Flask(__name__)
 
-ids = []
-
-
-@app.route("/")
-def hello_world():
-    """
-    USELESS
-    """
-    return "Hello, World!"
+challenges = {}
 
 
 @app.route("/create", methods=["POST"])
 def create():
     """
-    create challenge
+    Create challenge given a team_id. If force_new is true,
+    a new instance must be created and the old instance may be deleted.
 
-    generate a sufficiently random instance_id
-    Return json wth a description containing any
+    Return a description containing any
     information needed to access the challenge
-    and the instance_id
+
+    > return challenge_details
     """
     data = request.form or request.get_json()
+    team_id = str(data["team_id"])
+    force_new = data["force_new"]
 
-    instance_id = str(uuid.uuid4())
+    if force_new:
+        challenges[team_id] = "CHALLENGE_DETAILS-" + str(random.randint(0, 1000000000))
 
-    result = {"instance_id": instance_id, "details": "CHALLENGE_DETAILS"}
-    ids.append(instance_id)
+    try:
+        challenges[team_id]
+    except KeyError:
+        challenges[team_id] = "CHALLENGE_DETAILS-" + str(random.randint(0, 1000000000))
 
-    return json.dumps(result)
+    return challenges[team_id]
 
 
 @app.route("/attempt", methods=["POST"])
 def check_solve():
     """
-    check a solve, given an instance_id
+    Check a solve, given a team_id
 
-    return with a 200 code on successful solve or abort on
+    Return with a 200 code on successful solve or abort on
     a failed solve attempt
     """
     data = request.form or request.get_json()
 
+    team_id = str(data["team_id"])
+
     try:
-        instance_id = data["instance_id"]
+        challenge = challenges[team_id]
     except KeyError:
         abort(401)
 
-    if not instance_id in ids:
-        abort(401)
-
-    return "SUCCESS"
+    return "Success"
 
 
 app.run(debug=True, threaded=True, host="127.0.0.1", port=4001)

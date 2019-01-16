@@ -20,7 +20,7 @@ window.challenge.postRender = function () {
 
 window.challenge.submit = function (cb, preview) {
     var challenge_id = parseInt($('#challenge-id').val());
-    var submission = $('#submission-input').val();
+    var submission = "Oracle Solve Attempt"
     var url = "/api/v1/challenges/attempt";
 
     if (preview) {
@@ -59,22 +59,37 @@ getChallenge = function() {
     var challenge_id = parseInt($('#challenge-id').val());
     var url = "/plugins/oracle_challenges/" + challenge_id;
 
+    var params = {
+        'force_new': false
+    };
+
     CTFd.fetch(url, {
-        method: 'GET',
+        method: 'POST',
         credentials: 'same-origin',
-    }).then(function (response) {
-        if (response.status === 429) {
-            // User was ratelimited but process response
-            return response.json();
-        }
-        if (response.status === 403) {
-            // User is not logged in or CTF is paused.
-            return response.json();
-        }
-        return response.json();
-    }).then(function (response) {
-        console.log(response)
-        $('#id-output').text("Challenge ID: " + response.instance_id);
-        $('#oracle-details').text(response.details);
+        body: JSON.stringify(params)
+    }).then(function (response, reject) {
+        return response.text();
+    }).then(function (response, reject) {
+        $("#oracle-details").text(response);
     });
 };
+
+newChallenge = function() {
+    var challenge_id = parseInt($('#challenge-id').val());
+    var url = "/plugins/oracle_challenges/" + challenge_id;
+
+    var params = {
+        'force_new': true
+    };
+
+    CTFd.fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: JSON.stringify(params)
+    }).then(function (response) {
+        return response.text();
+    }).then(function (response) {
+        $("#oracle-details").text(response);
+    });
+};
+

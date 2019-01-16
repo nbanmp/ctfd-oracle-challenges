@@ -16,11 +16,11 @@ from CTFd.models import (
     Hints,
 )
 from CTFd import utils
-from CTFd.utils.user import get_ip, is_admin
+from CTFd.utils.user import get_ip, is_admin, get_current_team
 from CTFd.utils.uploads import upload_file, delete_file
 from CTFd.utils.decorators.visibility import check_challenge_visibility
 from CTFd.utils.decorators import during_ctf_time_only, require_verified_emails
-from flask import Blueprint, abort
+from flask import Blueprint, abort, request
 from sqlalchemy.sql import and_
 import six
 import json
@@ -143,21 +143,21 @@ class OracleChallenge(BaseChallenge):
         :return: (boolean, string)
         """
         data = request.form or request.get_json()
-        submission = data["submission"].strip()
-
-        instance_id = submission
+        # submission = data["submission"].strip()
+        # instance_id = submission
+        team_id = get_current_team().id
 
         try:
             r = requests.post(
-                str(challenge.endpoint) + "/attempt", json={"instance_id": instance_id}
+                str(challenge.oracle) + "/attempt", json={"team_id": team_id}
             )
         except requests.exceptions.ConnectionError:
-            return False, "Challenge endpoint is not available. Talk to an admin."
+            return False, "Challenge oracle is not available. Talk to an admin."
 
         if r.status_code == 200:
-            return True, "Yay: " + str(challenge.endpoint)
+            return True, "Correct"
 
-        return False, "Fail"
+        return False, "Incorrect"
 
         # flags = Flags.query.filter_by(challenge_id=challenge.id).all()
         # for flag in flags:
@@ -176,7 +176,7 @@ class OracleChallenge(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
-        submission = data["submission"].strip()
+        submission = "No flags for this challenge"
         solve = Solves(
             user_id=user.id,
             team_id=team.id if team else None,
@@ -199,7 +199,7 @@ class OracleChallenge(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
-        submission = data["submission"].strip()
+        submission = "No flags for this challenge"
         wrong = Fails(
             user_id=user.id,
             team_id=team.id if team else None,
@@ -228,11 +228,11 @@ def get_chal_class(class_id):
 class OracleChallenges(Challenges):
     __mapper_args__ = {"polymorphic_identity": "oracle"}
     id = db.Column(None, db.ForeignKey("challenges.id"), primary_key=True)
-    endpoint = db.Column(db.String, default="")
+    oracle = db.Column(db.String, default="")
 
     def __init__(self, *args, **kwargs):
         super(OracleChallenges, self).__init__(**kwargs)
-        self.endpoint = kwargs["endpoint"]
+        self.oracle = kwargs["oracle"]
 
 
 def load(app):
@@ -245,7 +245,7 @@ def load(app):
     @check_challenge_visibility
     @during_ctf_time_only
     @require_verified_emails
-    @app.route("/plugins/oracle_challenges/<challenge_id>", methods=["GET"])
+    @app.route("/plugins/oracle_challenges/<challenge_id>", methods=["POST"])
     def request_new_challenge(challenge_id):
         if is_admin():
             challenge = OracleChallenges.query.filter(
@@ -257,22 +257,20 @@ def load(app):
                 and_(Challenges.state != "hidden", Challenges.state != "locked"),
             ).first_or_404()
 
+        data = request.form or request.get_json()
+
+        team_id = get_current_team().id
+        force_new = data["force_new"]
+
         try:
-            r = requests.post(str(challenge.endpoint) + "/create")
-        except requests.exceptions.ConnectionError:
-            return json.dumps(
-                {
-                    "details": "Challenge endpoint is not available. Talk to an admin.",
-                    "instance_id": "ERROR",
-                }
+            r = requests.post(
+                str(challenge.oracle) + "/create",
+                json={"team_id": team_id, "force_new": force_new},
             )
+        except requests.exceptions.ConnectionError:
+            return "ERROR: Challenge oracle is not available. Talk to an admin."
 
         if r.status_code != 200:
-            return json.dumps(
-                {
-                    "details": "Challenge endpoint is not available. Talk to an admin.",
-                    "instance_id": "ERROR",
-                }
-            )
+            return "ERROR: Challenge oracle is not available. Talk to an admin."
 
         return r.text

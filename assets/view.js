@@ -70,7 +70,7 @@ getChallenge = function() {
     }).then(function (response, reject) {
         return response.text();
     }).then(function (response, reject) {
-        $("#oracle-details").text(response);
+        $("#oracle-details").html(response);
     });
 };
 
@@ -89,7 +89,7 @@ newChallenge = function() {
     }).then(function (response) {
         return response.text();
     }).then(function (response) {
-        $("#oracle-details").text(response);
+        $("#oracle-details").html(response);
     });
 };
 

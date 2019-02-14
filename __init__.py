@@ -228,7 +228,7 @@ def get_chal_class(class_id):
 class OracleChallenges(Challenges):
     __mapper_args__ = {"polymorphic_identity": "oracle"}
     id = db.Column(None, db.ForeignKey("challenges.id"), primary_key=True)
-    oracle = db.Column(db.String, default="")
+    oracle = db.Column(db.String(255), default="")
 
     def __init__(self, *args, **kwargs):
         super(OracleChallenges, self).__init__(**kwargs)
